@@ -25,6 +25,7 @@
  */
 package be.fedict.lod.xls2shacl;
 
+import java.io.File;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.HelpFormatter;
@@ -43,6 +44,7 @@ public class Main {
 	
 	private final static Options OPTS = 
 			new Options().addRequiredOption("i", "input", true, "input XLS")
+						.addOption("s", "sheet", true, "name of the work sheet")
 						.addOption("o", "outdir", true, "output directory");
 			
 	/**
@@ -72,7 +74,7 @@ public class Main {
 		LOG.error(msg);
 		System.exit(code);
 	}
-	
+
 	/**
 	 * Main
 	 * 
@@ -83,6 +85,12 @@ public class Main {
 		if (cli == null) {
 			exit(-1, "Couldn't parse command line");
 		}
+		
+		String infile = cli.getOptionValue("i", "");
+		String sheet = cli.getOptionValue("s", "Standard");
+		
+		OntoReader reader = new OntoReader();
+		reader.read(new File(infile), sheet);
 	}
 	
 }
