@@ -26,11 +26,19 @@
 package be.fedict.lod.xls2shacl;
 
 import java.io.File;
+import java.io.IOException;
+import java.util.Map;
+import java.util.Map.Entry;
+
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
+
+import org.eclipse.rdf4j.model.Model;
+import org.eclipse.rdf4j.model.Resource;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,6 +53,7 @@ public class Main {
 	private final static Options OPTS = 
 			new Options().addRequiredOption("i", "input", true, "input XLS")
 						.addOption("s", "sheet", true, "name of the work sheet")
+						.addOption("m", "mappings", true, "name of the sheet containing mappings")
 						.addOption("o", "outdir", true, "output directory");
 			
 	/**
@@ -88,9 +97,22 @@ public class Main {
 		
 		String infile = cli.getOptionValue("i", "");
 		String sheet = cli.getOptionValue("s", "Standard");
+		String mappings = cli.getOptionValue("m", "Datamodels");
 		
 		OntoReader reader = new OntoReader();
-		reader.read(new File(infile), sheet);
+		ShaclWriter writer = new ShaclWriter();
+		
+		Model model = reader.read(new File(infile), sheet, mappings);
+		Map<String,Resource> contexts = reader.getContexts();
+
+		for(Entry<String,Resource> context: contexts.entrySet()) {
+			try {
+				Model m = model.filter(null, null, null, context.getValue());
+				writer.write(context.getKey(), m);
+			} catch (IOException ioe) {
+				LOG.error(ioe.getMessage());
+			}
+		}
 	}
 	
 }
