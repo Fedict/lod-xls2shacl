@@ -81,7 +81,8 @@ public class ShaclWriter {
 	public void write(String name, Model m) throws IOException {
 		Path p = Paths.get(name.toLowerCase() + ".ttl");
 		try (OutputStream os = Files.newOutputStream(p, StandardOpenOption.CREATE_NEW, 
-														StandardOpenOption.TRUNCATE_EXISTING)) {
+														StandardOpenOption.TRUNCATE_EXISTING,
+														StandardOpenOption.WRITE)) {
 			RDFWriter writer = Rio.createWriter(RDFFormat.TURTLE, os);
 			Rio.write(m, writer);
 		}

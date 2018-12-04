@@ -87,8 +87,10 @@ public class OntoReader {
 		m.setNamespace(SKOS.NS);
 		m.setNamespace(XMLSchema.NS);
 	}
-
-	private final HashMap<String,Resource> contexts = new HashMap<>();
+	
+	private final Map<Integer,IRI> mapping = new HashMap<>();
+	private final Map<String,Resource> contexts = new HashMap<>();
+	
 	private final ValueFactory FAC = SimpleValueFactory.getInstance();
 	
 	private final String PREFIX = "http://vocab.belgif.be";
@@ -101,6 +103,12 @@ public class OntoReader {
 	private final int NAME = 4;
 	private final int LABEL_NL = 5;
 	private final int LABEL_FR = 6;
+	
+	private final int SOURCE = 2;
+	private final int DATA_MODEL = 3;
+	private final int PREDICATE = 5;
+	private final int SUBJECT_ID = 10;
+	private final int OBJECT_ID = 11;
 	
 	/**
 	 * Get existing (ontology) context or create a new one
@@ -147,7 +155,7 @@ public class OntoReader {
 	 * 
 	 * @param sheet work sheet to process
 	 */
-	private void processRows(Sheet sheet) {	
+	private void processDescRows(Sheet sheet) {	
 		for (Row row: sheet) {
 			if (row.getRowNum() == 0) {
 				continue; // skip header
@@ -166,11 +174,80 @@ public class OntoReader {
 					IRI s = FAC.createIRI(uri.getStringCellValue());
 					IRI o = type.getStringCellValue().toLowerCase().equals("class") ? RDFS.CLASS 
 																					: RDF.PROPERTY;
+					mapping.put((int) id.getNumericCellValue(), s);
+					
 					m.add(s, RDF.TYPE, o, context);
-					m.add(s, SKOS.NOTATION, makeLiteral(id, "en"), context);
-					m.add(s, DCTERMS.IDENTIFIER, makeLiteral(name, "en"), context);
+					m.add(s, SKOS.ALT_LABEL, makeLiteral(name, "en"), context);
 					m.add(s, DCTERMS.TITLE, makeLiteral(label_nl, "nl"), context);
 					m.add(s, DCTERMS.TITLE, makeLiteral(label_fr, "fr"), context);
+				} catch (IllegalArgumentException ioe) {
+					LOG.warn("Can't create IRI" + ioe.getMessage());
+				}
+			}
+		}
+	}
+	
+	/**
+	 * Process rows in work sheet
+	 * 
+	 * @param sheet work sheet to process
+	 */
+	private void processMapRows(Sheet sheet) {	
+		for (Row row: sheet) {
+			if (row.getRowNum() == 0) {
+				continue; // skip header
+			}
+			Cell val = row.getCell(DATA_MODEL);
+			Cell source = row.getCell(SOURCE);
+			
+			String src = (source != null) ? source.getStringCellValue().toLowerCase() : "";
+			if (! src.equals("fed")) {
+				LOG.debug("Skipping source " + src);
+				continue; // skip non fed source
+			}
+
+			Cell pred = row.getCell(PREDICATE);
+			Cell subj = row.getCell(SUBJECT_ID);
+			Cell obj = row.getCell(OBJECT_ID);
+
+			if (val != null && pred != null) {
+				Resource context = getContext(val.getStringCellValue());
+				try {
+					IRI s = mapping.get((int) subj.getNumericCellValue());
+					if (s == null) {
+						LOG.debug("Subject not found row " + row.getRowNum());
+						continue;
+					}
+					IRI o = null;
+					if (obj != null) {
+						o = mapping.get((int) obj.getNumericCellValue());
+						if (o == null) {
+							LOG.debug("Object not found" + row.getRowNum());
+							continue;
+						}
+					}
+					System.err.println(pred);
+					String p = pred.getStringCellValue().toLowerCase();
+					switch (p) {
+						case "domain":
+							System.err.println(s);
+							System.err.println(o);
+							System.err.println(context);
+							
+								m.add(s, RDFS.DOMAIN ,o, context);
+								break;
+						case "range": 
+								if (o != null) {
+									m.add(s, RDFS.RANGE, o, context);
+								} else {
+									//
+								}
+								break;
+						case "subclassof":
+								m.add(s, RDFS.SUBCLASSOF, o, context);
+						default: 
+								break;
+					}
 				} catch (IllegalArgumentException ioe) {
 					LOG.warn("Can't create IRI" + ioe.getMessage());
 				}
@@ -191,18 +268,26 @@ public class OntoReader {
 	 * Read file into RDF models, one context per ontology
 	 * 
 	 * @param fin input file
-	 * @param name name of the worksheet
+	 * @param descSheet name of the sheet with descriptions
+	 * @param mapSheet name of the sheet with mappings
 	 * @return model
 	 */
-	public Model read(File fin, String name, String mappings) {
+	public Model read(File fin, String descSheet, String mapSheet) {
 		try (InputStream is = new FileInputStream(fin)) {
 			Workbook wb = WorkbookFactory.create(is);
 			
-			Sheet sheet = wb.getSheet(name);
+			Sheet sheet = wb.getSheet(descSheet);
 			if (sheet != null) {
-				processRows(sheet);
+				processDescRows(sheet);
 			} else {
-				LOG.error("Worksheet not found: " + name);
+				LOG.error("Worksheet not found: " + descSheet);
+			}
+			
+			sheet = wb.getSheet(mapSheet);
+			if (sheet != null) {
+				processMapRows(sheet);
+			} else {
+				LOG.error("Worksheet not found: " + mapSheet);
 			}
 		} catch (IOException ex) {
 			LOG.error("Could not parse file " + fin.getName());
