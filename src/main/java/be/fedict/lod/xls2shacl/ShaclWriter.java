@@ -153,6 +153,20 @@ public class ShaclWriter {
 				shacl.add(nodeShape, SHACL.PROPERTY, blank);
 				shacl.add(blank, RDF.TYPE, SHACL.PROPERTY_SHAPE);
 				shacl.add(blank, SHACL.PATH, prop);
+				
+				Value range = m.filter(prop, RDFS.RANGE, null).objects().stream()
+																		.findFirst()
+																		.orElse(null);
+				if (range != null) {
+					shacl.add(blank, SHACL.CLASS, range);
+				} else {
+					Value dt = m.filter(prop, OWL.DATATYPEPROPERTY, null).objects().stream()
+																				.findFirst()
+																				.orElse(null);
+					if (dt != null) {
+						shacl.add(blank, SHACL.DATATYPE, dt);
+					}
+				}
 			}
 		}
 		

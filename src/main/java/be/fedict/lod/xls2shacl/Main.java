@@ -111,11 +111,13 @@ public class Main {
 			LOG.error("Nothing to write");
 		}
 		for(Resource context: contexts) {
-			try {
-				Model m = model.filter(null, null, null, context);
-				writer.write(((IRI) context).getLocalName(), m);
-			} catch (IOException ioe) {
-				LOG.error(ioe.toString());
+			if (context != null) {
+				try {
+					Model m = model.filter(null, null, null, context);
+					writer.write(((IRI) context).getLocalName(), m);
+				} catch (IOException ioe) {
+					LOG.error(ioe.toString());
+				}
 			}
 		}
 	}

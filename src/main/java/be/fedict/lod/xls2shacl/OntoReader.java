@@ -48,9 +48,11 @@ import org.eclipse.rdf4j.model.impl.LinkedHashModel;
 import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
 
 import org.eclipse.rdf4j.model.vocabulary.DCTERMS;
+import org.eclipse.rdf4j.model.vocabulary.OWL;
 import org.eclipse.rdf4j.model.vocabulary.RDF;
 import org.eclipse.rdf4j.model.vocabulary.RDFS;
 import org.eclipse.rdf4j.model.vocabulary.SKOS;
+import org.eclipse.rdf4j.model.vocabulary.XMLSchema;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -84,6 +86,7 @@ public class OntoReader {
 	private final int SOURCE = 2;
 	private final int DATA_MODEL = 3;
 	private final int PREDICATE = 5;
+	private final int OBJECT_NAME = 6;
 	private final int SUBJECT_ID = 10;
 	private final int OBJECT_ID = 11;
 	
@@ -163,6 +166,39 @@ public class OntoReader {
 	}
 	
 	/**
+	 * Get data type for name
+	 * 
+	 * @param name
+	 * @return 
+	 */
+	private IRI getType(String name) {
+		if (name == null) {
+			LOG.warn("Cannot get type");
+			return null;
+		}
+		IRI ret = null;
+		String n = name.toLowerCase();
+		switch(n) {
+			case "_boolean":
+				ret = XMLSchema.BOOLEAN;
+				break;
+			case " _string":
+				ret = XMLSchema.STRING;
+				break;
+			case "_langstring":
+				ret = RDF.LANGSTRING;
+				break;
+			case "_concept":
+				ret = SKOS.CONCEPT;
+			default:
+				break;
+		}
+		return ret;
+		
+	}
+	
+	
+	/**
 	 * Process rows in work sheet
 	 * 
 	 * @param sheet work sheet to process
@@ -184,6 +220,7 @@ public class OntoReader {
 			Cell pred = row.getCell(PREDICATE);
 			Cell subj = row.getCell(SUBJECT_ID);
 			Cell obj = row.getCell(OBJECT_ID);
+			Cell name = row.getCell(OBJECT_NAME);
 
 			if (val != null && pred != null) {
 				Resource context = getContext(val.getStringCellValue());
@@ -211,7 +248,10 @@ public class OntoReader {
 								if (o != null) {
 									m.add(s, RDFS.RANGE, o, context);
 								} else {
-									//
+									IRI t = getType(name.getStringCellValue());
+									if (t != null) {
+										m.add(s, OWL.DATATYPEPROPERTY, t);
+									}
 								}
 								break;
 						case "subclassof":
