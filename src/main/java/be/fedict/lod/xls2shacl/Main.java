@@ -29,12 +29,14 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
+import org.eclipse.rdf4j.model.IRI;
 
 import org.eclipse.rdf4j.model.Model;
 import org.eclipse.rdf4j.model.Resource;
@@ -103,14 +105,17 @@ public class Main {
 		ShaclWriter writer = new ShaclWriter();
 		
 		Model model = reader.read(new File(infile), sheet, mappings);
-		Map<String,Resource> contexts = reader.getContexts();
+		Set<Resource> contexts = model.contexts();
 
-		for(Entry<String,Resource> context: contexts.entrySet()) {
+		if (contexts.isEmpty()) {
+			LOG.error("Nothing to write");
+		}
+		for(Resource context: contexts) {
 			try {
-				Model m = model.filter(null, null, null, context.getValue());
-				writer.write(context.getKey(), m);
+				Model m = model.filter(null, null, null, context);
+				writer.write(((IRI) context).getLocalName(), m);
 			} catch (IOException ioe) {
-				LOG.error(ioe.getMessage());
+				LOG.error(ioe.toString());
 			}
 		}
 	}

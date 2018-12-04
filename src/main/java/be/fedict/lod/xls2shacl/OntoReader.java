@@ -29,8 +29,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -48,17 +46,11 @@ import org.eclipse.rdf4j.model.Resource;
 import org.eclipse.rdf4j.model.ValueFactory;
 import org.eclipse.rdf4j.model.impl.LinkedHashModel;
 import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
-import org.eclipse.rdf4j.model.vocabulary.DCAT;
+
 import org.eclipse.rdf4j.model.vocabulary.DCTERMS;
-import org.eclipse.rdf4j.model.vocabulary.FOAF;
-import org.eclipse.rdf4j.model.vocabulary.ORG;
-import org.eclipse.rdf4j.model.vocabulary.OWL;
 import org.eclipse.rdf4j.model.vocabulary.RDF;
 import org.eclipse.rdf4j.model.vocabulary.RDFS;
-import org.eclipse.rdf4j.model.vocabulary.ROV;
-import org.eclipse.rdf4j.model.vocabulary.SHACL;
 import org.eclipse.rdf4j.model.vocabulary.SKOS;
-import org.eclipse.rdf4j.model.vocabulary.XMLSchema;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,21 +64,6 @@ public class OntoReader {
 	private final static Logger LOG = LoggerFactory.getLogger(OntoReader.class);
 	
 	private final static Model m = new LinkedHashModel();
-	static {
-		m.setNamespace(DCAT.NS);
-		m.setNamespace(DCTERMS.NS);
-		m.setNamespace(FOAF.NS);
-		m.setNamespace("locn", "http://www.w3.org/ns/locn#");
-		m.setNamespace(ORG.NS);
-		m.setNamespace(OWL.NS);
-		m.setNamespace(RDF.NS);
-		m.setNamespace(RDFS.NS);
-		m.setNamespace(ROV.NS);
-		m.setNamespace("schema", "http://schema.org/");
-		m.setNamespace(SHACL.NS);
-		m.setNamespace(SKOS.NS);
-		m.setNamespace(XMLSchema.NS);
-	}
 	
 	private final Map<Integer,IRI> mapping = new HashMap<>();
 	private final Map<String,Resource> contexts = new HashMap<>();
@@ -121,16 +98,7 @@ public class OntoReader {
 		if (context != null) {
 			return context;
 		}
-		context = FAC.createIRI(GRAPH + name.toLowerCase());
-
-		Literal version = FAC.createLiteral("Draft " + LocalDate.now().format(DateTimeFormatter.ISO_DATE));
-		IRI onto = FAC.createIRI(PREFIX + "/" + name.toLowerCase() + "#");
-
-		m.add(onto, RDF.TYPE, OWL.ONTOLOGY, context);
-		m.add(onto, OWL.VERSIONINFO, version, context);
-		m.setNamespace("shbe-" + name.toLowerCase(), onto.toString());
-	
-		return context;
+		return FAC.createIRI(GRAPH + name.toLowerCase());
 	}
 	
 	
@@ -171,7 +139,14 @@ public class OntoReader {
 			if (val != null && type != null && uri != null) {
 				Resource context = getContext(val.getStringCellValue());
 				try {
-					IRI s = FAC.createIRI(uri.getStringCellValue());
+					String u = uri.getStringCellValue();
+					if (u.startsWith("<")) {
+						u = u.substring(1);
+					} 
+					if (u.endsWith(">")) {
+						u = u.substring(0, u.length() - 1);
+					}
+					IRI s = FAC.createIRI(u);
 					IRI o = type.getStringCellValue().toLowerCase().equals("class") ? RDFS.CLASS 
 																					: RDF.PROPERTY;
 					mapping.put((int) id.getNumericCellValue(), s);
@@ -226,14 +201,10 @@ public class OntoReader {
 							continue;
 						}
 					}
-					System.err.println(pred);
+
 					String p = pred.getStringCellValue().toLowerCase();
 					switch (p) {
-						case "domain":
-							System.err.println(s);
-							System.err.println(o);
-							System.err.println(context);
-							
+						case "domain":							
 								m.add(s, RDFS.DOMAIN ,o, context);
 								break;
 						case "range": 
@@ -253,15 +224,6 @@ public class OntoReader {
 				}
 			}
 		}
-	}
-	
-	/**
-	 * Get map of names and contexts
-	 * 
-	 * @return 
-	 */
-	public Map<String,Resource> getContexts() {
-		return contexts;
 	}
 		
 	/**
@@ -297,10 +259,10 @@ public class OntoReader {
 			LOG.warn("Empty models");
 		}
 		
-		m.contexts().forEach(ctx -> { 
+/*		m.contexts().forEach(ctx -> { 
 			System.err.println("MODEL " + ctx.toString());
 			m.filter(null, null, null, ctx).forEach(s -> System.err.println(s)); });
-		
+*/		
 		return m;
 	}
 }
