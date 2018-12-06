@@ -25,7 +25,10 @@
  */
 package be.fedict.lod.xls2shacl;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -33,8 +36,15 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.eclipse.rdf4j.model.BNode;
 
 import org.eclipse.rdf4j.model.IRI;
@@ -65,56 +75,95 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Write model to SHACL file file
+ * Write model to RDF file
  * 
  * @author Bart Hanssens
  */
-public class ShaclWriter extends Writer {
-	private final static Logger LOG = LoggerFactory.getLogger(ShaclWriter.class);
+public abstract class Writer {
+	private final static Logger LOG = LoggerFactory.getLogger(Writer.class);
 	
 	private final ValueFactory FAC = SimpleValueFactory.getInstance();
 	
+	private final String PREFIX = "http://vocab.belgif.be/ns";
+	
 	/**
-	 * Create the triples for a shacl file
+	 * Constructor
+	 */
+	public Writer() {
+	}
+	
+	/**
+	 * Construct URI for ontology
 	 * 
-	 * @param name file name
+	 * @param name name
+	 * @return URI as string
+	 */
+	protected String getOnto(String name) {
+		return PREFIX + "/" + name.toLowerCase() + "#";
+	}
+
+	/**
+	 * Get empty RDF model with a set of predefined namespaces
+	 * 
+	 * @param name
+	 * @return model
+	 */
+	protected Model getModel(String name) {
+		Model m = new LinkedHashModel();
+		m.setNamespace("adms", "http://www.w3.org/ns/adms#");
+		m.setNamespace(DCAT.NS);
+		m.setNamespace(DCTERMS.NS);
+		m.setNamespace(FOAF.NS);
+		m.setNamespace("locn", "http://www.w3.org/ns/locn#");
+		m.setNamespace(ORG.NS);
+		m.setNamespace(OWL.NS);
+		m.setNamespace(RDF.NS);
+		m.setNamespace(RDFS.NS);
+		m.setNamespace(ROV.NS);
+		m.setNamespace("schema", "http://schema.org/");
+		m.setNamespace(SHACL.NS);
+		m.setNamespace(SKOS.NS);
+		m.setNamespace(XMLSchema.NS);
+
+		Literal version = FAC.createLiteral("Draft " + LocalDate.now().format(DateTimeFormatter.ISO_DATE));
+		IRI onto = FAC.createIRI(getOnto(name));
+
+		m.add(onto, RDF.TYPE, OWL.ONTOLOGY);
+		m.add(onto, OWL.VERSIONINFO, version);
+		m.setNamespace("shbe-" + name.toLowerCase(), onto.toString());
+		
+		return m;
+	}
+	
+	/**
+	 * Creates the triples for a SHACL/OWL/... file
+	 * 
+	 * @param name name file/ontology name
 	 * @param m input RDF model
 	 */
-	public Model createTriples(String name, Model m) {
-		Model shacl = getModel(name);
+	public abstract Model createTriples(String name, Model m);
 	
-		Set<Resource> subjs = m.filter(null, RDF.TYPE, RDFS.CLASS).subjects();
-		for (Resource subj: subjs) {
-			Value v = m.filter(subj, SKOS.ALT_LABEL, null).objects().stream().findFirst().orElse(null);
-			String label = (v != null) ? v.stringValue() : "";
-			
-			IRI nodeShape = FAC.createIRI(getOnto(name) + label + "Shape");
-			shacl.add(nodeShape, RDF.TYPE, SHACL.NODE_SHAPE);
-			shacl.add(nodeShape, SHACL.TARGET_CLASS, subj);
-			
-			Set<Resource> props = m.filter(null, RDFS.DOMAIN, subj).subjects();
-			for (Resource prop: props) {
-				BNode blank = FAC.createBNode();
-				shacl.add(nodeShape, SHACL.PROPERTY, blank);
-				shacl.add(blank, RDF.TYPE, SHACL.PROPERTY_SHAPE);
-				shacl.add(blank, SHACL.PATH, prop);
-				
-				Value range = m.filter(prop, RDFS.RANGE, null).objects().stream()
-																		.findFirst()
-																		.orElse(null);
-				if (range != null) {
-					shacl.add(blank, SHACL.CLASS, range);
-				} else {
-					Value dt = m.filter(prop, OWL.DATATYPEPROPERTY, null).objects().stream()
-																				.findFirst()
-																				.orElse(null);
-					if (dt != null) {
-						shacl.add(blank, SHACL.DATATYPE, dt);
-					}
-				}
-			}
-		}
+	/**
+	 * Write a file
+	 * 
+	 * @param dir (sub)directory
+	 * @param name name of the file
+	 * @param m model to write
+	 * @throws IOException 
+	 */
+	public void writeFile(String dir, String name, Model m) throws IOException {
+		Model triples = createTriples(name, m);
 		
-		return shacl;
+		Path p = Paths.get(dir, name.toLowerCase() + ".ttl");
+		LOG.info("Writing to " + p);
+		
+		try (OutputStream os = Files.newOutputStream(p, StandardOpenOption.CREATE, 
+														StandardOpenOption.TRUNCATE_EXISTING,
+														StandardOpenOption.WRITE)) {
+			RDFWriter writer = Rio.createWriter(RDFFormat.TURTLE, os);
+			writer.set(BasicWriterSettings.INLINE_BLANK_NODES, true);
+			//writer.set(BasicWriterSettings.PRETTY_PRINT, true);
+			Rio.write(triples, writer);
+		}
 	}
 }

@@ -102,7 +102,7 @@ public class Main {
 		String mappings = cli.getOptionValue("m", "Datamodels");
 		
 		OntoReader reader = new OntoReader();
-		ShaclWriter writer = new ShaclWriter();
+		ShaclWriter shacl = new ShaclWriter();
 		
 		Model model = reader.read(new File(infile), sheet, mappings);
 		Set<Resource> contexts = model.contexts();
@@ -114,7 +114,7 @@ public class Main {
 			if (context != null) {
 				try {
 					Model m = model.filter(null, null, null, context);
-					writer.write(((IRI) context).getLocalName(), m);
+					shacl.writeFile("shacl", ((IRI) context).getLocalName(), m);
 				} catch (IOException ioe) {
 					LOG.error(ioe.toString());
 				}

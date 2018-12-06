@@ -298,11 +298,6 @@ public class OntoReader {
 		if (m.isEmpty()) {
 			LOG.warn("Empty models");
 		}
-		
-/*		m.contexts().forEach(ctx -> { 
-			System.err.println("MODEL " + ctx.toString());
-			m.filter(null, null, null, ctx).forEach(s -> System.err.println(s)); });
-*/		
 		return m;
 	}
 }
