@@ -27,8 +27,7 @@ package be.fedict.lod.xls2shacl;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Map;
-import java.util.Map.Entry;
+import java.nio.file.Paths;
 import java.util.Set;
 
 import org.apache.commons.cli.CommandLine;
@@ -100,21 +99,27 @@ public class Main {
 		String infile = cli.getOptionValue("i", "");
 		String sheet = cli.getOptionValue("s", "Standard");
 		String mappings = cli.getOptionValue("m", "Datamodels");
+		String dir = cli.getOptionValue("o", ".");
 		
 		OntoReader reader = new OntoReader();
-		ShaclWriter shacl = new ShaclWriter();
-		
 		Model model = reader.read(new File(infile), sheet, mappings);
 		Set<Resource> contexts = model.contexts();
 
 		if (contexts.isEmpty()) {
 			LOG.error("Nothing to write");
 		}
+		
+		ShaclWriter shacl = new ShaclWriter();
+		OwlWriter owl = new OwlWriter();
+		
 		for(Resource context: contexts) {
 			if (context != null) {
+				String name = ((IRI) context).getLocalName();
+				Model m = model.filter(null, null, null, context);
+					
 				try {
-					Model m = model.filter(null, null, null, context);
-					shacl.writeFile("shacl", ((IRI) context).getLocalName(), m);
+					shacl.writeFile(Paths.get(dir, "shacl"), name, m);
+					owl.writeFile(Paths.get(dir, "owl"), name, m);
 				} catch (IOException ioe) {
 					LOG.error(ioe.toString());
 				}

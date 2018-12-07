@@ -25,14 +25,23 @@
  */
 package be.fedict.lod.xls2shacl;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.Set;
+
+import org.eclipse.rdf4j.model.BNode;
+
+import org.eclipse.rdf4j.model.IRI;
+import org.eclipse.rdf4j.model.Literal;
 import org.eclipse.rdf4j.model.Model;
+import org.eclipse.rdf4j.model.Resource;
+import org.eclipse.rdf4j.model.Value;
 import org.eclipse.rdf4j.model.ValueFactory;
 import org.eclipse.rdf4j.model.impl.LinkedHashModel;
 import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
@@ -56,92 +65,50 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Write model to RDF file
+ * Write model to SHACL file file
  * 
  * @author Bart Hanssens
  */
-public abstract class Writer {
-	private final static Logger LOG = LoggerFactory.getLogger(Writer.class);
+public class OwlWriter extends Writer {
+	private final static Logger LOG = LoggerFactory.getLogger(ShaclWriter.class);
+	
 	private final ValueFactory FAC = SimpleValueFactory.getInstance();
+	private final String PREFIX = "http://vocab.belgif.be/ns";
 	
-	protected final static String[] LANGS = { "nl", "fr", "de", "en" }; 
-	
-	/**
-	 * Constructor
-	 */
-	public Writer() {
+	@Override
+	protected String getOnto(String name) {
+		return PREFIX + "/" + name.toLowerCase() + "#";
 	}
-	
-	/**
-	 * Construct URI for ontology
-	 * 
-	 * @param name name
-	 * @return URI as string
-	 */
-	protected abstract String getOnto(String name);
+		
+	@Override
+	public Model createTriples(String name, Model m) {
+		Model owl = getModel(name);
 
-	
-	/**
-	 * Get empty RDF model with a set of predefined namespaces
-	 * 
-	 * @param name
-	 * @return model
-	 */
-	protected Model getModel(String name) {
-		Model m = new LinkedHashModel();
-		m.setNamespace("adms", "http://www.w3.org/ns/adms#");
-		m.setNamespace(DCAT.NS);
-		m.setNamespace(DCTERMS.NS);
-		m.setNamespace(FOAF.NS);
-		m.setNamespace("locn", "http://www.w3.org/ns/locn#");
-		m.setNamespace(ORG.NS);
-		m.setNamespace(OWL.NS);
-		m.setNamespace(RDF.NS);
-		m.setNamespace(RDFS.NS);
-		m.setNamespace(ROV.NS);
-		m.setNamespace("schema", "http://schema.org/");
-		m.setNamespace(SHACL.NS);
-		m.setNamespace(SKOS.NS);
-		m.setNamespace(XMLSchema.NS);
+		Literal version = FAC.createLiteral("Draft " + LocalDate.now().format(DateTimeFormatter.ISO_DATE));
+		IRI onto = FAC.createIRI(getOnto(name) + "#");
+		owl.setNamespace("be-" + name.toLowerCase(), onto.toString());
 		
-		return m;
-	}
-	
-	/**
-	 * Creates the triples for a SHACL/OWL/... file
-	 * 
-	 * @param name name file/ontology name
-	 * @param m input RDF model
-	 */
-	public abstract Model createTriples(String name, Model m);
-	
-	/**
-	 * Write a file
-	 * 
-	 * @param dir (sub)directory
-	 * @param name name of the file
-	 * @param m model to write
-	 * @throws IOException 
-	 */
-	public void writeFile(Path dir, String name, Model m) throws IOException {
-		Model triples = createTriples(name, m);
-		
-		Path p = Paths.get(dir.toFile().toString(), name.toLowerCase() + ".ttl");
-		LOG.info("Writing to " + p);
-		
-		File subdir = dir.toFile();
-		if (! subdir.exists()) {
-			LOG.info("Creating subdir");
-			subdir.mkdirs();
+		owl.add(onto, RDF.TYPE, OWL.ONTOLOGY);
+		owl.add(onto, OWL.VERSIONINFO, version);
+		for (String lang: LANGS) {
+			owl.add(onto, RDFS.LABEL, FAC.createLiteral(name, lang));
 		}
 		
-		try (OutputStream os = Files.newOutputStream(p, StandardOpenOption.CREATE, 
-														StandardOpenOption.TRUNCATE_EXISTING,
-														StandardOpenOption.WRITE)) {
-			RDFWriter writer = Rio.createWriter(RDFFormat.TURTLE, os);
-			writer.set(BasicWriterSettings.INLINE_BLANK_NODES, true);
-			//writer.set(BasicWriterSettings.PRETTY_PRINT, true);
-			Rio.write(triples, writer);
+		Set<Resource> cls = m.filter(null, RDF.TYPE, RDFS.CLASS).subjects();
+		for (Resource cl: cls) {
+			owl.add(cl, RDFS.ISDEFINEDBY, onto);
+			owl.add(cl, RDF.TYPE, RDFS.CLASS);
+			owl.add(cl, RDF.TYPE, OWL.CLASS);
 		}
+		
+		Set<Resource> props = m.filter(null, RDF.TYPE, RDF.PROPERTY).subjects();
+		for (Resource prop: props) {
+			owl.add(prop, RDFS.ISDEFINEDBY, onto);
+			owl.add(prop, RDF.TYPE, RDF.PROPERTY);
+			owl.add(prop, RDF.TYPE, OWL.DATATYPEPROPERTY);
+			
+		}
+		
+		return owl;
 	}
 }

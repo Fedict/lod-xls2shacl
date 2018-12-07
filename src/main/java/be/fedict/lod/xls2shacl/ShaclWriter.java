@@ -25,12 +25,6 @@
  */
 package be.fedict.lod.xls2shacl;
 
-import java.io.IOException;
-import java.io.OutputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Set;
@@ -43,23 +37,12 @@ import org.eclipse.rdf4j.model.Model;
 import org.eclipse.rdf4j.model.Resource;
 import org.eclipse.rdf4j.model.Value;
 import org.eclipse.rdf4j.model.ValueFactory;
-import org.eclipse.rdf4j.model.impl.LinkedHashModel;
 import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
-import org.eclipse.rdf4j.model.vocabulary.DCAT;
-import org.eclipse.rdf4j.model.vocabulary.DCTERMS;
-import org.eclipse.rdf4j.model.vocabulary.FOAF;
-import org.eclipse.rdf4j.model.vocabulary.ORG;
 import org.eclipse.rdf4j.model.vocabulary.OWL;
 import org.eclipse.rdf4j.model.vocabulary.RDF;
 import org.eclipse.rdf4j.model.vocabulary.RDFS;
-import org.eclipse.rdf4j.model.vocabulary.ROV;
 import org.eclipse.rdf4j.model.vocabulary.SHACL;
 import org.eclipse.rdf4j.model.vocabulary.SKOS;
-import org.eclipse.rdf4j.model.vocabulary.XMLSchema;
-import org.eclipse.rdf4j.rio.RDFFormat;
-import org.eclipse.rdf4j.rio.RDFWriter;
-import org.eclipse.rdf4j.rio.Rio;
-import org.eclipse.rdf4j.rio.helpers.BasicWriterSettings;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -73,16 +56,27 @@ public class ShaclWriter extends Writer {
 	private final static Logger LOG = LoggerFactory.getLogger(ShaclWriter.class);
 	
 	private final ValueFactory FAC = SimpleValueFactory.getInstance();
+	private final String PREFIX = "http://vocab.belgif.be/shacl";
 	
-	/**
-	 * Create the triples for a shacl file
-	 * 
-	 * @param name file name
-	 * @param m input RDF model
-	 */
+	@Override
+	protected String getOnto(String name) {
+		return PREFIX + "/" + name.toLowerCase() + "#";
+	}
+		
+	@Override
 	public Model createTriples(String name, Model m) {
 		Model shacl = getModel(name);
-	
+		
+		Literal version = FAC.createLiteral("Draft " + LocalDate.now().format(DateTimeFormatter.ISO_DATE));
+		IRI onto = FAC.createIRI(getOnto(name));
+
+		shacl.setNamespace("shbe-" + name.toLowerCase(), onto.toString());
+		shacl.add(onto, RDF.TYPE, OWL.ONTOLOGY);
+		shacl.add(onto, OWL.VERSIONINFO, version);
+		for (String lang: LANGS) {	
+			shacl.add(onto, RDFS.LABEL, FAC.createLiteral(name + " model", lang));
+		}
+		
 		Set<Resource> subjs = m.filter(null, RDF.TYPE, RDFS.CLASS).subjects();
 		for (Resource subj: subjs) {
 			Value v = m.filter(subj, SKOS.ALT_LABEL, null).objects().stream().findFirst().orElse(null);
