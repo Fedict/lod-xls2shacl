@@ -30,7 +30,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.Set;
 
 import org.eclipse.rdf4j.model.BNode;
-
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Literal;
 import org.eclipse.rdf4j.model.Model;
@@ -48,7 +47,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Write model to SHACL file file
+ * Write model to SHACL validation file
  * 
  * @author Bart Hanssens
  */

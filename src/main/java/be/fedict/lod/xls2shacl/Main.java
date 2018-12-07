@@ -44,7 +44,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Convert a specific XLSX containing ontologies to OWL and SHACL 
+ * Convert a specific XLSX containing ontologies to OWL and SHACL files
  * 
  * @author Bart Hanssens
  */

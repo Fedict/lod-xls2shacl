@@ -126,6 +126,10 @@ public abstract class Writer {
 	public void writeFile(Path dir, String name, Model m) throws IOException {
 		Model triples = createTriples(name, m);
 		
+		if (triples.isEmpty()) {
+			LOG.info("Nothing to write for " + name);
+			return;
+		}
 		Path p = Paths.get(dir.toFile().toString(), name.toLowerCase() + ".ttl");
 		LOG.info("Writing to " + p);
 		
