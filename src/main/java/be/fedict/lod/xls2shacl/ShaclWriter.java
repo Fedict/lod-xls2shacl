@@ -37,6 +37,7 @@ import org.eclipse.rdf4j.model.Resource;
 import org.eclipse.rdf4j.model.Value;
 import org.eclipse.rdf4j.model.ValueFactory;
 import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
+import org.eclipse.rdf4j.model.vocabulary.DCTERMS;
 import org.eclipse.rdf4j.model.vocabulary.OWL;
 import org.eclipse.rdf4j.model.vocabulary.RDF;
 import org.eclipse.rdf4j.model.vocabulary.RDFS;
@@ -85,6 +86,10 @@ public class ShaclWriter extends Writer {
 			shacl.add(nodeShape, RDF.TYPE, SHACL.NODE_SHAPE);
 			shacl.add(nodeShape, SHACL.TARGET_CLASS, subj);
 			
+			for (Value n: m.filter(subj, DCTERMS.TITLE, null).objects()) {
+				shacl.add(nodeShape, SHACL.NAME, n);
+			}
+				
 			Set<Resource> props = m.filter(null, RDFS.DOMAIN, subj).subjects();
 			for (Resource prop: props) {
 				BNode blank = FAC.createBNode();

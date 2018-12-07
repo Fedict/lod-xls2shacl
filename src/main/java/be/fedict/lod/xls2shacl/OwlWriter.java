@@ -34,9 +34,11 @@ import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Literal;
 import org.eclipse.rdf4j.model.Model;
 import org.eclipse.rdf4j.model.Resource;
+import org.eclipse.rdf4j.model.Value;
 import org.eclipse.rdf4j.model.ValueFactory;
 import org.eclipse.rdf4j.model.impl.LinkedHashModel;
 import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
+import org.eclipse.rdf4j.model.vocabulary.DCTERMS;
 import org.eclipse.rdf4j.model.vocabulary.OWL;
 import org.eclipse.rdf4j.model.vocabulary.RDF;
 import org.eclipse.rdf4j.model.vocabulary.RDFS;
@@ -54,7 +56,7 @@ public class OwlWriter extends Writer {
 	
 	private final ValueFactory FAC = SimpleValueFactory.getInstance();
 	private final String PREFIX = "http://vocab.belgif.be/ns";
-	private final String VOCAB = "http://vovab.belgif.be";
+	private final String VOCAB = "http://vocab.belgif.be";
 	
 	@Override
 	protected String getOnto(String name) {
@@ -66,7 +68,7 @@ public class OwlWriter extends Writer {
 		Model owl = getModel(name);
 
 		Literal version = FAC.createLiteral("Draft " + LocalDate.now().format(DateTimeFormatter.ISO_DATE));
-		IRI onto = FAC.createIRI(getOnto(name) + "#");
+		IRI onto = FAC.createIRI(getOnto(name));
 		owl.setNamespace("be-" + name.toLowerCase(), onto.toString());
 		
 		owl.add(onto, RDF.TYPE, OWL.ONTOLOGY);
@@ -83,6 +85,13 @@ public class OwlWriter extends Writer {
 			owl.add(cl, RDFS.ISDEFINEDBY, onto);
 			owl.add(cl, RDF.TYPE, RDFS.CLASS);
 			owl.add(cl, RDF.TYPE, OWL.CLASS);
+			
+			for (Value n: m.filter(cl, DCTERMS.TITLE, null).objects()) {
+				owl.add(cl, RDFS.LABEL, n);
+			}
+			for (Value d: m.filter(cl, DCTERMS.DESCRIPTION, null).objects()) {
+				owl.add(cl, RDFS.COMMENT, d);
+			}
 		}
 		
 		Set<Resource> props = m.filter(null, RDF.TYPE, RDF.PROPERTY).subjects().stream()
@@ -92,7 +101,13 @@ public class OwlWriter extends Writer {
 			owl.add(prop, RDFS.ISDEFINEDBY, onto);
 			owl.add(prop, RDF.TYPE, RDF.PROPERTY);
 			owl.add(prop, RDF.TYPE, OWL.DATATYPEPROPERTY);
-			
+
+			for (Value n: m.filter(prop, DCTERMS.TITLE, null).objects()) {
+				owl.add(prop, RDFS.LABEL, n);
+			}
+			for (Value d: m.filter(prop, DCTERMS.DESCRIPTION, null).objects()) {
+				owl.add(prop, RDFS.COMMENT, d);
+			}			
 		}
 		
 		return !(cls.isEmpty() && props.isEmpty()) ? owl : new LinkedHashModel();

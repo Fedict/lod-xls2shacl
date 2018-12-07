@@ -82,6 +82,9 @@ public class OntoReader {
 	private final int NAME = 4;
 	private final int LABEL_NL = 5;
 	private final int LABEL_FR = 6;
+	private final int DEF = 7;
+	private final int DEF_NL = 8;
+	private final int DEF_FR = 9;
 	
 	private final int SOURCE = 2;
 	private final int DATA_MODEL = 3;
@@ -138,6 +141,9 @@ public class OntoReader {
 			Cell name = row.getCell(NAME);
 			Cell label_nl = row.getCell(LABEL_NL);
 			Cell label_fr = row.getCell(LABEL_FR);
+			Cell def_en = row.getCell(DEF);
+			Cell def_nl = row.getCell(DEF_NL);
+			Cell def_fr = row.getCell(DEF_FR);
 			
 			if (val != null && type != null && uri != null) {
 				Resource context = getContext(val.getStringCellValue());
@@ -156,8 +162,13 @@ public class OntoReader {
 					
 					m.add(s, RDF.TYPE, o, context);
 					m.add(s, SKOS.ALT_LABEL, makeLiteral(name, "en"), context);
+					m.add(s, DCTERMS.TITLE, makeLiteral(name, "en"), context);
 					m.add(s, DCTERMS.TITLE, makeLiteral(label_nl, "nl"), context);
 					m.add(s, DCTERMS.TITLE, makeLiteral(label_fr, "fr"), context);
+					m.add(s, DCTERMS.DESCRIPTION, makeLiteral(def_en, "en"), context);
+					m.add(s, DCTERMS.DESCRIPTION, makeLiteral(def_nl, "nl"), context);
+					m.add(s, DCTERMS.DESCRIPTION, makeLiteral(def_fr, "fr"), context);
+					
 				} catch (IllegalArgumentException ioe) {
 					LOG.warn("Can't create IRI" + ioe.getMessage());
 				}
